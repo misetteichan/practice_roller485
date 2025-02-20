@@ -8,6 +8,50 @@
 static UnitRollerI2C roller;
 int32_t origin = 0;
 m5avatar::Avatar avatar;
+int mode = 0;
+
+void apply_angle() {
+  auto curr = -(origin - roller.getPosReadback()) / 100.f;
+  curr = std::fmod(curr, 360.0f); 
+  if (curr < 0) {
+    curr += 360.f;
+  }
+  avatar.setRotation(curr);
+}
+
+bool judge_mode() {
+  M5.update();
+  if (!M5.BtnA.wasClicked()) {
+    return false;
+  }
+  mode = 1 - mode;
+  origin = roller.getPosReadback();
+  roller.setPos(origin);
+
+  auto cp = avatar.getColorPalette();
+  switch (mode) {
+  case 0:
+    roller.setOutput(0);
+    cp.set(COLOR_PRIMARY, WHITE);
+    break;
+  case 1:
+    roller.setOutput(1);
+    cp.set(COLOR_PRIMARY, YELLOW);
+    break;
+  }
+  avatar.setColorPalette(cp);
+  return true;
+}
+
+bool move(float deg) {
+  if (judge_mode()) {
+    return false;
+  }
+  roller.setPos(roller.getPos() + static_cast<int32_t>(deg * 100.f));
+  M5.delay(1);
+  apply_angle();
+  return true;
+}
 
 void setup() {
   M5.begin();
@@ -20,7 +64,7 @@ void setup() {
   roller.setOutput(0);
   roller.setMode(ROLLER_MODE_POSITION);
   roller.setPosMaxCurrent(100000);
-  origin = roller.getCurrentReadback();
+  origin = roller.getPos();
 
   const auto r = avatar.getFace()->getBoundingRect();
   const auto scale = std::min(
@@ -33,15 +77,24 @@ void setup() {
   avatar.init();
 }
 
-void track_angle() {
-  auto curr = -(origin - roller.getPosReadback()) / 100.f;
-  curr = fmod(curr, 360.0f); 
-  if (curr < 0) {
-    curr += 360.f;
-  }
-  avatar.setRotation(curr);
-}
-
 void loop() {
-  track_angle();
+  const auto d = .5f;
+  switch (mode) {
+  case 0:
+    judge_mode();
+    apply_angle();
+    break;
+  case 1:
+    while (roller.getPos() < origin + 36000) {
+      if (!move(d)) {
+        return;
+      }
+    }
+    while (roller.getPos() > origin) {
+      if (!move(-d)) {
+        return;
+      }
+    }
+    break;
+  }
 }
