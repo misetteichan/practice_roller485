@@ -25,8 +25,7 @@ bool judge_mode() {
     return false;
   }
   mode = 1 - mode;
-  origin = roller.getPosReadback();
-  roller.setPos(origin);
+  roller.setPos(roller.getPosReadback());
 
   auto cp = avatar.getColorPalette();
   switch (mode) {
